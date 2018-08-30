@@ -10,13 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import javax.portlet.ActionRequest;
-import javax.portlet.ActionResponse;
-import javax.portlet.PortletConfig;
+import com.dotcms.repackage.javax.portlet.ActionRequest;
+import com.dotcms.repackage.javax.portlet.ActionResponse;
+import com.dotcms.repackage.javax.portlet.PortletConfig;
 
-import org.apache.commons.beanutils.BeanUtils;
-import org.apache.struts.action.ActionForm;
-import org.apache.struts.action.ActionMapping;
+import com.dotcms.repackage.org.apache.commons.beanutils.BeanUtils;
+import com.dotcms.repackage.org.apache.struts.action.ActionForm;
+import com.dotcms.repackage.org.apache.struts.action.ActionMapping;
 import org.dotcms.plugins.contentImporter.portlet.form.ContentImporterForm;
 
 import com.dotmarketing.portal.struts.DotPortletAction;
@@ -81,6 +81,7 @@ public class EditContentImporterJobAction extends DotPortletAction {
 						hasErrors = true;
 					}
 				}
+
 				Date endDate = null;
 				if (contentImporterForm.isHaveEndDate()) {
 					try {
@@ -115,9 +116,17 @@ public class EditContentImporterJobAction extends DotPortletAction {
 					hasErrors = true;
 				}
 
-				if (!UtilMethods.isSet(contentImporterForm.getFilePath())) {
-					SessionMessages.add(req, "error", "message.content.importer.file.path.required");
-					hasErrors = true;
+
+				if(!contentImporterForm.isHaveFileSource()){
+					if(!UtilMethods.isSet(contentImporterForm.getFilePath())){
+						SessionMessages.add(req, "error", "message.content.importer.file.path.required");
+						hasErrors = true;
+					}
+				} else {
+					if(!UtilMethods.isSet(contentImporterForm.getFileAsset())){
+						SessionMessages.add(req, "error", "message.content.importer.file.asset.required");
+						hasErrors = true;
+					}
 				}
 
 				if ((contentImporterForm.getFields() != null) && (0 < contentImporterForm.getFields().length)) {
@@ -324,8 +333,13 @@ public class EditContentImporterJobAction extends DotPortletAction {
 			properties.put("fields", fields.toString());
 		}
 
+		properties.put("haveFileSource", contentImporterForm.isHaveFileSource());
 		if (UtilMethods.isSet(contentImporterForm.getFilePath()))
 			properties.put("filePath", contentImporterForm.getFilePath());
+		if (UtilMethods.isSet(contentImporterForm.getFileAsset()))
+			properties.put("fileAsset", contentImporterForm.getFileAsset());
+		if (UtilMethods.isSet(contentImporterForm.getFileAssetQuery()))
+			properties.put("fileAssetQuery", contentImporterForm.getFileAssetQuery());
 
 		if (UtilMethods.isSet(contentImporterForm.getReportEmail()))
 			properties.put("reportEmail", contentImporterForm.getReportEmail());
@@ -718,7 +732,13 @@ public class EditContentImporterJobAction extends DotPortletAction {
 			}
 
 			contentImporterForm.setFields(fields);
+
 			contentImporterForm.setFilePath((String) properties.get("filePath"));
+			contentImporterForm.setFileAsset((String) properties.get("fileAsset"));
+			contentImporterForm.setFileAssetQuery((String) properties.get("fileAssetQuery"));
+			if (UtilMethods.isSet(properties.get("haveFileSource")))
+				contentImporterForm.setHaveFileSource((Boolean) properties.get("haveFileSource"));
+
 			contentImporterForm.setReportEmail((String) properties.get("reportEmail"));
 			contentImporterForm.setCsvSeparatorDelimiter((String) properties.get("csvSeparatorDelimiter"));
 			contentImporterForm.setCsvTextDelimiter((String) properties.get("csvTextDelimiter"));			

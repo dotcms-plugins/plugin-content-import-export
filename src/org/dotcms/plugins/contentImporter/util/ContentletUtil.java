@@ -1,7 +1,9 @@
 package org.dotcms.plugins.contentImporter.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -15,16 +17,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.csvreader.CsvReader;
+import com.dotcms.repackage.com.csvreader.CsvReader;
 import com.dotmarketing.beans.Host;
 import com.dotmarketing.beans.Identifier;
 import com.dotmarketing.beans.Permission;
 import com.dotmarketing.business.APILocator;
+import com.dotmarketing.business.CacheLocator;
+import com.dotmarketing.business.DotStateException;
+import com.dotmarketing.business.FactoryLocator;
 import com.dotmarketing.business.PermissionAPI;
 import com.dotmarketing.business.Role;
 import com.dotmarketing.business.web.WebAPILocator;
 import com.dotmarketing.cache.FieldsCache;
-import com.dotmarketing.cache.StructureCache;
+import com.dotmarketing.cache.ContentTypeCache;
+import com.dotmarketing.cache.ContentTypeCacheImpl;
+
 import com.dotmarketing.common.model.ContentletSearch;
 import com.dotmarketing.db.HibernateUtil;
 import com.dotmarketing.exception.DotDataException;
@@ -38,19 +45,17 @@ import com.dotmarketing.portlets.contentlet.business.DotContentletStateException
 import com.dotmarketing.portlets.contentlet.business.DotContentletValidationException;
 import com.dotmarketing.portlets.contentlet.business.HostAPI;
 import com.dotmarketing.portlets.contentlet.model.Contentlet;
-import com.dotmarketing.portlets.files.model.File;
 import com.dotmarketing.portlets.folders.business.FolderAPI;
 import com.dotmarketing.portlets.folders.model.Folder;
 import com.dotmarketing.portlets.languagesmanager.business.LanguageAPI;
 import com.dotmarketing.portlets.languagesmanager.model.Language;
 import com.dotmarketing.portlets.structure.factories.FieldFactory;
-import com.dotmarketing.portlets.structure.factories.RelationshipFactory;
 import com.dotmarketing.portlets.structure.model.ContentletRelationships;
 import com.dotmarketing.portlets.structure.model.Field;
 import com.dotmarketing.portlets.structure.model.Relationship;
 import com.dotmarketing.portlets.structure.model.Structure;
 import com.dotmarketing.tag.business.TagAPI;
-import com.dotmarketing.tag.factories.TagFactory;
+import com.dotmarketing.tag.business.TagFactory;
 import com.dotmarketing.util.DateUtil;
 import com.dotmarketing.util.ImportUtil;
 import com.dotmarketing.util.InodeUtils;
@@ -139,7 +144,7 @@ public class ContentletUtil {
 		results.put("identifiers", new ArrayList<String>());
 		results.put("lastInode", new ArrayList<String>());
 
-		Structure st = StructureCache.getStructureByInode (structure);
+		Structure st = CacheLocator.getContentTypeCache().getStructureByInode (structure);
 		List<Permission> structurePermissions = permissionAPI.getPermissions(st);
 		List<UniqueFieldBean> uniqueFieldBeans = new ArrayList<UniqueFieldBean>();
 		List<Field> uniqueFields = new ArrayList<Field>();
@@ -285,13 +290,14 @@ public class ContentletUtil {
 
 		//Importing headers and storing them in a hashmap to be reused later in the whole import process
 		List<Field> fields = FieldsCache.getFieldsByStructureInode(structure.getInode());
-		List<Relationship> structureRelationships = RelationshipFactory.getAllRelationshipsByStructure(structure);
+		List<Relationship> structureRelationships = FactoryLocator.getRelationshipFactory()
+                .byContentType(structure);
 		List<String> requiredFields = new ArrayList<String>();
 		List<String> headerFields = new ArrayList<String>();
 
 		for(Field field:fields){
 			if(field.isRequired()){
-				requiredFields.add(field.getFieldName());
+				requiredFields.add(field.getVelocityVarName());
 			}
 		}
 
@@ -319,7 +325,7 @@ public class ContentletUtil {
 			headerFields.add(header);
 
 			for (Field field : fields) {
-				if (field.getFieldName().equalsIgnoreCase(header)) {
+				if (field.getVelocityVarName().equalsIgnoreCase(header)) {
 					if (field.getFieldType().equals(Field.FieldType.BUTTON.toString())){
 						found = true;
 
@@ -567,13 +573,59 @@ public class ContentletUtil {
 					//valueObj = UtilMethods.escapeUnicodeCharsForHTML(value);
 				}//http://jira.dotmarketing.net/browse/DOTCMS-3232
 				else if (field.getFieldType().equals(Field.FieldType.HOST_OR_FOLDER.toString())) {
-					String identifier = APILocator.getIdentifierAPI().find(value).getInode();
-					if(InodeUtils.isSet(identifier)){
+					Identifier id = null;
+					valueObj = null;
+					try{
+						id = APILocator.getIdentifierAPI().findFromInode(value);
+					}
+					catch(DotStateException dse){
+						Logger.debug(ImportUtil.class, dse.getMessage());
+
+					}
+					
+					if(id != null && InodeUtils.isSet(id.getInode())){
 						valueObj = value;
 						headersIncludeHostField = true;
-					}else{
+					}else if(value.contains("//")){
+						String hostName=null;
+						StringWriter path = null;
+						
+							String[] arr = value.split("/");
+							path = new StringWriter().append("/");
+							
+							
+							for(String y : arr){
+								if(UtilMethods.isSet(y) && hostName == null){
+									hostName = y;
+									
+								}
+								else if(UtilMethods.isSet(y)){
+									path.append(y);
+									path.append("/");
+									
+								}
+							}
+							Host host = APILocator.getHostAPI().findByName(hostName, user, false);
+							if(UtilMethods.isSet(host)){
+								valueObj=host.getIdentifier();
+								Folder f = APILocator.getFolderAPI().findFolderByPath(path.toString(), host, user, false);
+								if(UtilMethods.isSet(f))
+									valueObj=f.getInode();
+								headersIncludeHostField = true;
+							}
+					}
+					else{
+						Host h = APILocator.getHostAPI().findByName(value, user, false);
+						if(UtilMethods.isSet(h)){
+							valueObj=h.getIdentifier();	
+							headersIncludeHostField = true;
+						}
+					}
+
+					if(valueObj ==null){
 						throw new DotRuntimeException("Line #" + lineNumber + " contains errors, Column: " + field.getFieldName() +
 								", value: " + value + ", invalid host/folder inode found, line will be ignored.");
+						
 					}
 				}else if(field.getFieldType().equals(Field.FieldType.IMAGE.toString()) || field.getFieldType().equals(Field.FieldType.FILE.toString())) {
 					String filePath = value;
@@ -602,9 +654,6 @@ public class ContentletUtil {
 							}
 						}
 
-						//Find the file in dotCMS
-						File dotCMSFile = null;
-
 						Identifier id = APILocator.getIdentifierAPI().find(fileHost, filePath);
 						if(id!=null && InodeUtils.isSet(id.getId()) && id.getAssetType().equals("contentlet")){
 							Contentlet cont = APILocator.getContentletAPI().findContentletByIdentifier(id.getId(), true, APILocator.getLanguageAPI().getDefaultLanguage().getId(), user, false);
@@ -616,28 +665,8 @@ public class ContentletUtil {
 								results.get("warnings").add(localLineMessage + lineNumber + ". " + noFileMessage + ": " + fileHost.getHostname() + ":" + filePath);
 								valueObj = null;
 							}
-						}else{
-							try
-							{
-								dotCMSFile = APILocator.getFileAPI().getFileByURI(filePath, fileHost, true, user, false);
-
-							}catch(Exception ex)
-							{
-								//File doesn't exist below I check this
-							}
-							if(UtilMethods.isSet(dotCMSFile) && UtilMethods.isSet(dotCMSFile.getIdentifier()))
-							{
-								valueObj = dotCMSFile.getIdentifier();
-							}
-							else
-							{
-								//Add Warning the File doesn't exist
-								String localLineMessage = LanguageUtil.get(user, "Line--");
-								String noFileMessage = LanguageUtil.get(user, "The-file-has-not-been-found");
-								results.get("warnings").add(localLineMessage + lineNumber + ". " + noFileMessage + ": " + fileHost.getHostname() + ":" + filePath);
-								valueObj = null;
-							}
-						}	}
+						}
+					}
 				}
 				else {
 					valueObj = UtilMethods.escapeUnicodeCharsForHTML(value);
@@ -665,25 +694,27 @@ public class ContentletUtil {
 				{
 					relatedContentlets = conAPI.checkoutWithQuery(relatedQuery, user, false);
 
-					//validate if the contenlet retrieved are from the correct typ
-					if(RelationshipFactory.isParentOfTheRelationship(relationship,structure))
+					//validate if the contenlet retrieved are from the correct type
+					if(FactoryLocator.getRelationshipFactory()
+                            .isParent(relationship,structure))
 					{
 						for(Contentlet contentlet : relatedContentlets)
 						{
 							Structure relatedStructure = contentlet.getStructure();
-							if(!(RelationshipFactory.isChildOfTheRelationship(relationship,relatedStructure)))
+							if(!(FactoryLocator.getRelationshipFactory().isChild(relationship,relatedStructure)))
 							{
 								error = true;
 								break;
 							}
 						}
 					}
-					if(RelationshipFactory.isChildOfTheRelationship(relationship,structure))
+					if(FactoryLocator.getRelationshipFactory().isChild(relationship,structure))
 					{
 						for(Contentlet contentlet : relatedContentlets)
 						{
 							Structure relatedStructure = contentlet.getStructure();
-							if(!(RelationshipFactory.isParentOfTheRelationship(relationship,relatedStructure)))
+							if(!(FactoryLocator.getRelationshipFactory()
+		                            .isParent(relationship,relatedStructure)))
 							{
 								error = true;
 								break;
@@ -919,16 +950,20 @@ public class ContentletUtil {
 					Field field = headers.get(column);
 					Object value = values.get(column);
 
-					if (field.getFieldType().equals(Field.FieldType.HOST_OR_FOLDER.toString())) { // DOTCMS-4484
+					if (field.getFieldType().equals(Field.FieldType.HOST_OR_FOLDER.toString())) { // DOTCMS-4484												
 
-						Host host = hostAPI.find(value.toString(), user, false);
-						Folder folder = new Folder();
-						if(!InodeUtils.isSet(host.getInode())){
-							folder = folderAPI.find(value.toString(),user,false);
-						}
+                        //Verify if the value belongs to a Host or to a Folder
+                        Folder folder = null;
+                        Host host = hostAPI.find( value.toString(), user, false );
+                        //If a host was not found using the given value (identifier) it must be a folder
+                        if ( !UtilMethods.isSet( host ) || !InodeUtils.isSet( host.getInode() ) ) {
+                            folder = folderAPI.find( value.toString(), user, false );
+                        }
+
 						if (folder != null && folder.getInode().equalsIgnoreCase(value.toString())) {
+
 							if (!permissionAPI.doesUserHavePermission(folder,PermissionAPI.PERMISSION_CAN_ADD_CHILDREN,user)) {
-								throw new DotSecurityException("User have no Add Children Permissions on selected host");
+                                throw new DotSecurityException( "User have no Add Children Permissions on selected folder" );
 							}
 							cont.setHost(folder.getHostId());
 							cont.setFolder(value.toString());
@@ -1104,6 +1139,7 @@ public class ContentletUtil {
 						if(publishContent){
 							APILocator.getVersionableAPI().setLive(cont);
 						}
+						TagAPI tagapi = APILocator.getTagAPI();
 						for (Integer column : headers.keySet()) {
 							Field field = headers.get(column);
 							Object value = values.get(column);
@@ -1129,13 +1165,13 @@ public class ContentletUtil {
 										hostId = Host.SYSTEM_HOST;
 									}
 									for (String tag : tags) {
-										TagFactory.addTagInode((String)tag.trim(), cont.getInode(), hostId);
+										tagapi.addContentletTagInode((String)tag.trim(), cont.getInode(), hostId, field.getVelocityVarName());
 									}
 								}
 								else {
 									for (String tagName : tags)
 										try {
-											TagFactory.addTagInode(tagName.trim(), cont.getInode(), Host.SYSTEM_HOST);
+											tagapi.addContentletTagInode(tagName.trim(), cont.getInode(), Host.SYSTEM_HOST, field.getVelocityVarName());
 										} catch (Exception e) {
 											e.printStackTrace();
 										}
@@ -1181,7 +1217,7 @@ public class ContentletUtil {
 		int offset = 0;
 		ContentletAPI conAPI=APILocator.getContentletAPI();
 		List<Contentlet> contentlets=null;
-		Structure st = StructureCache.getStructureByInode (struture);
+		Structure st = CacheLocator.getContentTypeCache().getStructureByInode (struture);
 		do {
 			contentlets = conAPI.findByStructure(st, user, false, limit, offset);
 			conAPI.delete(contentlets, user, false);

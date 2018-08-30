@@ -18,26 +18,27 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import javax.portlet.ActionRequest;
-import javax.portlet.ActionResponse;
-import javax.portlet.PortletConfig;
+import com.dotcms.repackage.javax.portlet.ActionRequest;
+import com.dotcms.repackage.javax.portlet.ActionResponse;
+import com.dotcms.repackage.javax.portlet.PortletConfig;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.apache.struts.action.ActionForm;
-import org.apache.struts.action.ActionMapping;
+import com.dotcms.repackage.org.apache.struts.action.ActionForm;
+import com.dotcms.repackage.org.apache.struts.action.ActionMapping;
 import org.dotcms.plugins.contentImporter.portlet.form.ImportExternalContentletsForm;
 import org.dotcms.plugins.contentImporter.util.ContentletUtil;
 
-import com.csvreader.CsvReader;
+import com.dotcms.repackage.com.csvreader.CsvReader;
 import com.dotmarketing.beans.Host;
 import com.dotmarketing.beans.Permission;
 import com.dotmarketing.business.APILocator;
+import com.dotmarketing.business.CacheLocator;
 import com.dotmarketing.business.PermissionAPI;
 import com.dotmarketing.cache.FieldsCache;
-import com.dotmarketing.cache.StructureCache;
+import com.dotmarketing.cache.ContentTypeCache;
 import com.dotmarketing.db.HibernateUtil;
 import com.dotmarketing.exception.DotDataException;
 import com.dotmarketing.exception.DotRuntimeException;
@@ -460,7 +461,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 		results.put("identifiers", new ArrayList<String>());
 		results.put("lastInode", new ArrayList<String>());
 
-		Structure st = StructureCache.getStructureByInode (structure);
+		Structure st = CacheLocator.getContentTypeCache().getStructureByInode(structure);
 		List<Permission> structurePermissions = permissionAPI.getPermissions(st);
 
 		//Initializing variables
@@ -642,7 +643,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 				}
 			}
 			if(!found){
-				results.get("errors").add(contentField+LanguageUtil.get(user, "doesn-t-match-any-structure-field"));
+				results.get("errors").add(contentField+" "+LanguageUtil.get(user, "doesn-t-match-any-structure-field"));
 			}
 		}else {
 			results.get("errors").add(LanguageUtil.get(user, "message.import.external.content.importer.content.required"));
@@ -657,7 +658,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 				}
 			}
 			if(!found){
-				results.get("errors").add(pathField+LanguageUtil.get(user, "doesn-t-match-any-structure-field"));
+				results.get("errors").add(pathField+" "+LanguageUtil.get(user, "doesn-t-match-any-structure-field"));
 			}
 		}
 
@@ -965,7 +966,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 						String[] tags = ((String)value).split(",");
 						for (String tag : tags) {
 							try {
-								tagAPI.addTagInode((String)tag.trim(), cont.getInode(), Host.SYSTEM_HOST);
+								tagAPI.addContentletTagInode((String)tag.trim(), cont.getInode(), Host.SYSTEM_HOST, field.getVelocityVarName());
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
