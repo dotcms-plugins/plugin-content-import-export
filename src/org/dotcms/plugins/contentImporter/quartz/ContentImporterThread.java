@@ -15,7 +15,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import org.dotcms.plugins.contentImporter.util.ContentletUtil;
+import org.dotcms.plugins.contentImporter.util.FileImporter;
+import org.dotcms.plugins.contentImporter.util.ImportParams;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
@@ -44,26 +45,24 @@ import com.liferay.portal.model.Company;
 import com.liferay.portal.model.User;
 
 public class ContentImporterThread implements Job {
+
 	private final static PluginAPI pluginAPI = APILocator.getPluginAPI();
 
 	public void execute(JobExecutionContext context) throws JobExecutionException {
-		JobDataMap properties = context.getMergedJobDataMap();
 
-		long language = 0;
-		boolean isMultilanguage = false;
+		JobDataMap properties = context.getMergedJobDataMap();
+		ImportParams importParams = new ImportParams();
+
+		long language;
 		try {
 			language = Long.parseLong(properties.getString("language"));
-
-			if(language == -1)
-			{
-				isMultilanguage = true;
-			}
-		}catch(Exception e4){
+		}catch(Exception e){
+			Logger.warn(this, "Error getting language from properties, using default language", e);
 			language = APILocator.getLanguageAPI().getDefaultLanguage().getId();
 		}
+		importParams.setLanguage(language);
+
 		String logPath = "";
-
-
 		boolean haveFileSource = false;
 		String fileAsset = null, fileAssetQuery = null;
 		String filePath = null;
@@ -77,71 +76,51 @@ public class ContentImporterThread implements Job {
 			filePath = (String) properties.get("filePath");
 
 		} catch (Exception e) {
-		}		
-
+			Logger.warn(this, "Error getting import log path", e);
+		}
 
 		try {
-			String structure = (String) properties.get("structure");
+			importParams.setStructure((String)properties.get("structure"));
 
-			String[] fields = {};
 			if (UtilMethods.isSet(properties.get("fields"))) {
 				String[] strFields = ((String) properties.get("fields")).split(",");
-				List<String> longFields = new ArrayList<String>(strFields.length);
+				List<String> fields = new ArrayList<>(strFields.length);
 				for (String field: strFields) {
-					longFields.add(field);
+					fields.add(field);
 				}
-
-				String[] tempArray = new String[longFields.size()];
-				for (int pos = 0; pos < longFields.size(); ++pos) {
-					tempArray[pos] = longFields.get(pos);
-				}
-				fields = tempArray;
+				importParams.setFields(fields);
 			}
 
-
-			String reportEmail = (String) properties.get("reportEmail");
+			final String reportEmail = (String) properties.get("reportEmail");
 
 			String csvSeparatorDelimiter = (String) properties.get("csvSeparatorDelimiter");
 			if (!UtilMethods.isSet(csvSeparatorDelimiter))
-				csvSeparatorDelimiter = ",";
+				importParams.setCsvSeparatorDelimiter(",");
 			else
-				csvSeparatorDelimiter = "" + csvSeparatorDelimiter.trim().charAt(0);
+				importParams.setCsvSeparatorDelimiter("" + csvSeparatorDelimiter.trim().charAt(0));
 
 			String csvTextDelimiter = (String) properties.get("csvTextDelimiter");
 			if (UtilMethods.isSet(csvTextDelimiter))
-				csvTextDelimiter = "" + csvTextDelimiter.trim().charAt(0);
+				importParams.setCsvTextDelimiter("" + csvTextDelimiter.trim().charAt(0));
 
-			boolean publishContent = new Boolean((String) properties.get("publishContent"));
-			boolean deleteAllContent = new Boolean((String) properties.get("deleteAllContent"));
-			boolean saveWithoutVersions = new Boolean((String) properties.get("saveWithoutVersions"));
-
+			importParams.setPublishContent(new Boolean((String) properties.get("publishContent")));
+			importParams.setDeleteAllContent(new Boolean((String) properties.get("deleteAllContent")));
+			importParams.setSaveWithoutVersions(new Boolean((String) properties.get("saveWithoutVersions")));
 
 			if (haveFileSource) {
-				importFromContent(
-					fileAsset, fileAssetQuery, logPath, reportEmail,
-					structure, fields, language, isMultilanguage,
-					csvSeparatorDelimiter, csvTextDelimiter,
-					publishContent, deleteAllContent, saveWithoutVersions
-				);
+				importFromContent(fileAsset, fileAssetQuery, logPath, reportEmail, importParams);
 			} else {
-				importFromFileSystem(
-					filePath, logPath, reportEmail, 
-					structure, fields, language, isMultilanguage,
-					csvSeparatorDelimiter, csvTextDelimiter,
-					publishContent, deleteAllContent, saveWithoutVersions
-				);
+				importFromFileSystem(filePath, logPath, reportEmail, importParams);
 			}
 
-		} catch (Exception e1) {
-			Logger.warn(this, e1.toString());                  
+		} catch (Exception e) {
+			Logger.error(this, "Error importing content from file", e);
 		}               
 	}
 
 	private void importFromContent(
-		String fileAsset, String fileAssetQuery, String logPath, String reportEmail,
-		String structure, String[] fields, long language, boolean isMultilanguage, String csvSeparatorDelimiter,
-		String csvTextDelimiter, boolean publishContent, boolean deleteAllContent, boolean saveWithoutVersions
-	) {
+		String fileAsset, String fileAssetQuery, String logPath, String reportEmail, final ImportParams importParams) {
+
 		HashMap<String, List<String>> results = createResults();
 
 		try {
@@ -153,13 +132,18 @@ public class ContentImporterThread implements Job {
 				luceneQuery += "+"+ fileAsset +".fileName:*.csv +deleted:false  +live:true";
 			}
 
-			if (!isMultilanguage) {
-				luceneQuery += " +languageId:"+ language;
+			if (!importParams.isMultilanguage()) {
+				luceneQuery += " +languageId:" + importParams.getLanguage();
 			}
 
 			List<Contentlet> hits = APILocator.getContentletAPI().search(
 				luceneQuery, -1, 0, "modDate asc", APILocator.getUserAPI().getSystemUser(), false
 			);
+
+			Logger.info(this, "-------------------------------------------------------------------------");
+			Logger.info(this, "---------------------- Starting Content Import Job ----------------------");
+			Logger.info(this, "-------------------------------------------------------------------------");
+			Logger.info(this, "Files to import: " + hits.size());
 
 			for(Contentlet contentlet : hits) {
 
@@ -174,11 +158,12 @@ public class ContentImporterThread implements Job {
 						fileName = fileName.substring(0, index);
 
 					try {
-						HashMap<String, List<String>> currentResults = importInputStream(
-							fileAssetCont.getInputStream(), csvTextDelimiter, csvSeparatorDelimiter,
-							structure, fields, fileAssetCont.getLanguageId(), isMultilanguage,
-							publishContent, deleteAllContent, saveWithoutVersions
-						);
+
+						Logger.info(this, "*************************************************************");
+						Logger.info(this, "----> Import File: " + fileName);
+
+						HashMap<String, List<String>> currentResults =
+								importInputStream(fileAssetCont.getInputStream(), importParams);
 
 						if (currentResults != null) {
 							results = currentResults;
@@ -190,12 +175,15 @@ public class ContentImporterThread implements Job {
 							contentlet, fileAssetCont,
 							fileName + " - " + UtilMethods.dateToHTMLDate(new Date(), "yyyyMMddHHmmss") + ".csv.old"
 						);
+						Logger.info(this, "Moved imported file: " + fileName);
+
 
 					}
 				} catch (Exception e) {
 
-					((List<String>) results.get("errors")).add("Exception: " + e.toString());
-					Logger.error(ContentImporterThread.class, e.getMessage(),e);
+					results.get("errors").add("Exception: " + e.toString());
+					Logger.error(ContentImporterThread.class, String.format("An error occurred while importing data " +
+							"from file '%s': %s", fileName, e.getMessage()), e);
 
 				} finally {
 
@@ -204,9 +192,10 @@ public class ContentImporterThread implements Job {
 			}
 
 		} catch (Exception e) {
-			((List<String>) results.get("errors")).add("Exception: " + e.toString());
 
-			Logger.error(ContentImporterThread.class, e.getMessage(),e);
+			results.get("errors").add("Exception: " + e.toString());
+			Logger.error(ContentImporterThread.class, String.format("An error occurred while importing data on type " +
+					"'%s': %s", fileAsset, e.getMessage()), e);
 
 			sendResults(results, reportEmail, fileAsset + " Import Results", logPath, fileAsset);						
 		}
@@ -253,11 +242,8 @@ public class ContentImporterThread implements Job {
 	}
 
 	private void importFromFileSystem(
-		String filePath, String logPath, String reportEmail,
-		String structure, String[] fields, long language, boolean isMultilanguage,
-		String csvSeparatorDelimiter, String csvTextDelimiter,
-		boolean publishContent, boolean deleteAllContent, boolean saveWithoutVersions
-	) {
+		String filePath, String logPath, String reportEmail, final ImportParams importParams) {
+
 		HashMap<String, List<String>> results = createResults();
 
 		String fileName = new File(filePath).getName();
@@ -301,11 +287,8 @@ public class ContentImporterThread implements Job {
 					file.renameTo(renameFile);
 					file = renameFile;
 
-					HashMap<String, List<String>> currentResults = importInputStream(
-						new FileInputStream(file), csvTextDelimiter, csvSeparatorDelimiter,
-						structure, fields, language, isMultilanguage,
-						publishContent, deleteAllContent, saveWithoutVersions
-					);
+					HashMap<String, List<String>> currentResults =
+							importInputStream(new FileInputStream(file), importParams);
 					if (currentResults != null) {
 						results = currentResults;
 					}
@@ -344,38 +327,40 @@ public class ContentImporterThread implements Job {
 	}
 
 	private HashMap<String, List<String>> importInputStream(
-		InputStream inputStream, String csvTextDelimiter, String csvSeparatorDelimiter,
-		String structure, String[] fields, long language, boolean isMultilanguage,
-		boolean publishContent, boolean deleteAllContent, boolean saveWithoutVersions
-	) throws IOException, DotDataException, DotSecurityException {
+			final InputStream inputStream, final ImportParams importParams)
+			throws IOException, DotDataException, DotSecurityException {
+
 		Reader reader = null;
 		CsvReader csvreader = null;
 
 		try {
 			reader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
-			csvreader = new CsvReader(reader, csvSeparatorDelimiter.charAt(0));
+			csvreader = new CsvReader(reader, importParams.getCsvSeparatorDelimiter().charAt(0));
 
-			if (UtilMethods.isSet(csvTextDelimiter))
-				csvreader.setTextQualifier(csvTextDelimiter.charAt(0));
+			if (UtilMethods.isSet(importParams.getCsvTextDelimiter()))
+				csvreader.setTextQualifier(importParams.getCsvTextDelimiter().charAt(0));
 
 			csvreader.setSafetySwitch(false);
 
 			User user = APILocator.getUserAPI().getSystemUser();
 
-			if (csvreader.readHeaders()) 
-			{
-				ContentletUtil contentletUtil = new ContentletUtil(reader, csvreader);
-				if(deleteAllContent){
-					contentletUtil.deleteAllContent(structure, user);
+			if (csvreader.readHeaders()) {
+				FileImporter fileImporter = new FileImporter(csvreader, importParams, false, user);
+				if(importParams.isDeleteAllContent()){
+					fileImporter.deleteAllContent(importParams.getStructure(), user);
 				}
-				return contentletUtil.importFile(structure, fields, false, user, isMultilanguage, language,publishContent,saveWithoutVersions);
+				return fileImporter.importFile();
+			} else {
+				Logger.warn(this, "Couldn't read file headers");
 			}
 			return null;
+
 		} finally {
 			if (reader != null) {
 				try {
 					reader.close();
 				} catch (Exception e) {
+					Logger.warn(this, "Error closing file reader", e);
 				}
 			}
 
@@ -383,23 +368,25 @@ public class ContentImporterThread implements Job {
 				try {
 					csvreader.close();
 				} catch (Exception e) {
+					Logger.warn(this, "Error closing csv reader", e);
 				}
 			}
 		}
 	}
 
 	private HashMap<String, List<String>> createResults() {
-		HashMap<String, List<String>> results = new HashMap<String, List<String>>();
 
+		HashMap<String, List<String>> results = new HashMap<String, List<String>>();
 		results.put("warnings", new ArrayList<String>());
 		results.put("errors", new ArrayList<String>());
 		results.put("messages", new ArrayList<String>());
 		results.put("results", new ArrayList<String>());
-
 		return results;
+
 	}
 
 	private void sendResults(HashMap<String, List<String>> results, String reportEmail, String subject,String logPath, String fileName) {
+
 		StringBuilder message = new StringBuilder(1024);
 		message.ensureCapacity(256);
 
@@ -449,9 +436,14 @@ public class ContentImporterThread implements Job {
 			m.setTextBody(message.toString());
 
 			if (!m.sendMessage()) {
-				Logger.info(ContentImporterThread.class,"Email couldn't be sent.");
+				Logger.info(ContentImporterThread.class, String.format("ERROR: Email with Import Results from '%s' " +
+						"could NOT be sent to '%s'", company.getEmailAddress(), reportEmail));
+			} else {
+				Logger.info(ContentImporterThread.class, String.format("Email with Import Results from '%s' was sent " +
+						"to '%s' successfully!", company.getEmailAddress(), reportEmail));
 			}
 		}
+
 	}
 
 	private void contentImporterLogger(String filePath, String fileName, String message) {
@@ -470,7 +462,7 @@ public class ContentImporterThread implements Job {
 			out.write(message);
 
 		} catch (Exception e1) {
-			Logger.error(this, e1.toString());
+			Logger.error(this, "Error writing to importer logger on directory " + filePath + ":" + e1.toString());
 		} finally{	
 			if (out != null) {
 				try {
@@ -480,4 +472,5 @@ public class ContentImporterThread implements Job {
 			}
 		}
 	}
+
 }

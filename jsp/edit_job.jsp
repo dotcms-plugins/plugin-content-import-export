@@ -1,4 +1,4 @@
-<%@page import="org.dotcms.plugins.contentImporter.util.ContentletUtil"%>
+<%@page import="org.dotcms.plugins.contentImporter.util.FileImporter"%>
 <%@ include file="/html/plugins/org.dotcms.plugins.contentImporter/init.jsp" %>
 <%@ include file="/html/common/messages_inc.jsp" %>
 <%@ page import="java.util.*" %>
@@ -448,7 +448,7 @@ function submitParent() {
 			</dt>
 			<dd><br/>
 				<%
-					SimpleDateFormat sdf = new SimpleDateFormat(ContentletUtil.DOTSCHEDULER_DATE);
+					SimpleDateFormat sdf = new SimpleDateFormat(FileImporter.DOTSCHEDULER_DATE);
 				
 					int[] monthIds = CalendarUtil.getMonthIds();
 					String[] months = CalendarUtil.getMonths(locale);

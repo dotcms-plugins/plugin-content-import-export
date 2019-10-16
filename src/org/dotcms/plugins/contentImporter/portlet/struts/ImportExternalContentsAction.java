@@ -29,7 +29,7 @@ import javax.servlet.http.HttpSession;
 import com.dotcms.repackage.org.apache.struts.action.ActionForm;
 import com.dotcms.repackage.org.apache.struts.action.ActionMapping;
 import org.dotcms.plugins.contentImporter.portlet.form.ImportExternalContentletsForm;
-import org.dotcms.plugins.contentImporter.util.ContentletUtil;
+import org.dotcms.plugins.contentImporter.util.FileImporter;
 
 import com.dotcms.repackage.com.csvreader.CsvReader;
 import com.dotmarketing.beans.Host;
@@ -38,7 +38,6 @@ import com.dotmarketing.business.APILocator;
 import com.dotmarketing.business.CacheLocator;
 import com.dotmarketing.business.PermissionAPI;
 import com.dotmarketing.cache.FieldsCache;
-import com.dotmarketing.cache.ContentTypeCache;
 import com.dotmarketing.db.HibernateUtil;
 import com.dotmarketing.exception.DotDataException;
 import com.dotmarketing.exception.DotRuntimeException;
@@ -48,7 +47,6 @@ import com.dotmarketing.portal.struts.DotPortletAction;
 import com.dotmarketing.portlets.categories.business.CategoryAPI;
 import com.dotmarketing.portlets.categories.model.Category;
 import com.dotmarketing.portlets.contentlet.action.ImportAuditUtil;
-import com.dotmarketing.portlets.contentlet.action.ImportContentletsAction;
 import com.dotmarketing.portlets.contentlet.action.ImportAuditUtil.ImportAuditResults;
 import com.dotmarketing.portlets.contentlet.business.ContentletAPI;
 import com.dotmarketing.portlets.contentlet.business.DotContentletValidationException;
@@ -307,7 +305,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 		List<Field> fields = FieldsCache.getFieldsByStructureInode(importForm.getStructure());
 		for(int i = 0; i < fields.size(); i++) {
 			Field field = fields.get(i);
-			if (ContentletUtil.isImportableField(field)) {
+			if (FileImporter.isImportableField(field)) {
 				String fieldName = field.getFieldName();
 				if(fieldName.contains(","))
 					out.print("\"" + fieldName + "\"");
@@ -321,7 +319,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 
 		for(int i = 0; i < fields.size(); i++) {
 			Field field = fields.get(i);
-			if (ContentletUtil.isImportableField(field)) {
+			if (FileImporter.isImportableField(field)) {
 				if (field.getFieldType().equals(Field.FieldType.DATE.toString())) {
 					out.print("MM/dd/yyyy");
 				}        	
@@ -573,7 +571,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 				}
 			}
 		} catch (Exception e) {
-			Logger.error(ImportContentletsAction.class,e.getMessage());
+			Logger.error(ImportExternalContentsAction.class, "Error importing file: " + e.getMessage(), e);
 
 		} finally {
 
@@ -1052,8 +1050,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 				{
 					cont.setLowIndexPriority(true);
 					cont = conAPI.checkin(cont, new ArrayList<Category>(categories), structurePermissions, user, false);
-					APILocator.getVersionableAPI().setLive(cont);
-					APILocator.getVersionableAPI().setWorking(cont);
+					conAPI.publish (cont, user, false);
 
 					results.get("lastInode").clear();
 					List<String> l = results.get("lastInode");
@@ -1174,7 +1171,7 @@ public class ImportExternalContentsAction extends DotPortletAction{
 				return new String(((byte[])content));	
 			}
 		}catch(Exception e1){
-			Logger.error(ContentletUtil.class, e1.getMessage());
+			Logger.error(ImportExternalContentsAction.class, "Error getting external field:" + e1.getMessage(), e1);
 			return null;
 		}
 
