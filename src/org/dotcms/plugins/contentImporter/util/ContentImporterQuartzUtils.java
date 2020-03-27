@@ -6,6 +6,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import com.dotmarketing.business.APILocator;
+import com.dotmarketing.exception.DotDataException;
+import com.liferay.portal.model.User;
 import org.quartz.CronTrigger;
 import org.quartz.JobDetail;
 import org.quartz.Trigger;
@@ -71,4 +74,18 @@ public class ContentImporterQuartzUtils extends QuartzUtils {
 		
 		return result;
 	}
+
+	/**
+	 *
+	 * @return
+	 */
+	public static User getSystemUser() {
+		try {
+			return APILocator.getUserAPI().getSystemUser();
+		} catch (final DotDataException e) {
+			throw new RuntimeException("SEVERE: An error occurred when retrieving the System Use. This should never " +
+					"happen!", e);
+		}
+	}
+
 }

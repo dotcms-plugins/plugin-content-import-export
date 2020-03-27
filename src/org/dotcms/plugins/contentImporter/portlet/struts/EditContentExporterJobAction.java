@@ -14,7 +14,7 @@ import com.dotcms.repackage.javax.portlet.ActionRequest;
 import com.dotcms.repackage.javax.portlet.ActionResponse;
 import com.dotcms.repackage.javax.portlet.PortletConfig;
 
-import com.dotcms.repackage.org.apache.commons.beanutils.BeanUtils;
+import org.apache.commons.beanutils.BeanUtils;
 import com.dotcms.repackage.org.apache.struts.action.ActionForm;
 import com.dotcms.repackage.org.apache.struts.action.ActionMapping;
 import org.dotcms.plugins.contentImporter.portlet.form.ContentExporterForm;
