@@ -42,6 +42,7 @@ function deleteJob(jobName,jobGroup)
 	<style>
 		.dijitSelect .dijitButtonText{width:150px;text-align:left;}
 	</style>
+<div style="padding-top: 15px;"></div>
 <div class="yui-g portlet-toolbar">
 	<div class="yui-u first" style="white-space: nowrap">
 		<button dojoType="dijit.form.Button" onClick="showAllJobs()" iconClass="searchIcon">

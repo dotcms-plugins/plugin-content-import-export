@@ -1,4 +1,4 @@
-dotCMS Automated Content Import/Export Plugin
+dotCMS Content Import/Export Plugin
 ======================================
 This plugin allows the configuration of a Quartz Job which imports and exports content automatically.
 
