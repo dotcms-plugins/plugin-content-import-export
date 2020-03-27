@@ -685,7 +685,7 @@ function submitParent() {
 				</dd>
 			<dd>
 				<img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-frequency")%>
-				<br/><br/><input type="radio" dojoType="dijit.form.RadioButton" <%=!contentExporterForm.isHaveCronExpression()?"checked":""%> id="haveCronExpression2" name="haveCronExpression" value="false" onclick="showRegularDates(this)"/><%=LanguageUtil.get(pageContext,"content-exporter-dont-use-cronexpression")%>
+				<br/><br/><input type="radio" dojoType="dijit.form.RadioButton" <%=!contentExporterForm.isHaveCronExpression()?"checked":""%> id="haveCronExpression2" name="haveCronExpression" value="false" onclick="showRegularDates(this)"/> <%=LanguageUtil.get(pageContext,"content-exporter-dont-use-cronexpression")%>
 			    <br/><em><%=LanguageUtil.get(pageContext,"content-exporter-dont-use-cronexpression-hint")%></em>	
 			</dd>
 		<div id="regularDates">
@@ -784,7 +784,7 @@ function submitParent() {
 			</dd>
 			<dd>
 				<div style="margin-left:20px;">
-					<input type="checkbox" dojoType="dijit.form.CheckBox" id="everyInfo" name="everyInfo" <%=contentExporterForm.isEveryInfo()?"checked":"" %>/><span><%=LanguageUtil.get(pageContext,"every").toLowerCase()%></span>
+					<input type="checkbox" dojoType="dijit.form.CheckBox" id="everyInfo" name="everyInfo" <%=contentExporterForm.isEveryInfo()?"checked":"" %>/> <span><%=LanguageUtil.get(pageContext,"every").toLowerCase()%></span>
 					<br/><em><%=LanguageUtil.get(pageContext,"content-exporter-every-hint")%></em>
 				</div>
 			</dd>
@@ -884,7 +884,7 @@ function submitParent() {
 			</dd>
 		</div><!-- close regulardates -->
 		<dd>
-			<input type="radio" dojoType="dijit.form.RadioButton" <%=contentExporterForm.isHaveCronExpression()?"checked":""%> id="haveCronExpression" name="haveCronExpression" value="true" onclick="showRegularDates(this)"/><%=LanguageUtil.get(pageContext,"content-importer-use-cronexpression")%>
+			<input type="radio" dojoType="dijit.form.RadioButton" <%=contentExporterForm.isHaveCronExpression()?"checked":""%> id="haveCronExpression" name="haveCronExpression" value="true" onclick="showRegularDates(this)"/> <%=LanguageUtil.get(pageContext,"content-importer-use-cronexpression")%>
 			<br/><em><%=LanguageUtil.get(pageContext,"content-importer-use-cronexpression-hint")%></em>
 			<br/>
 			<div id="cronDiv" style="margin-left:20px;">
@@ -899,7 +899,7 @@ function submitParent() {
 				<br/><em><%=LanguageUtil.get(pageContext,"Structure-to-Export-hint")%></em>
 			</dt>
 			<dd>
-				<br/><select dojoType="dijit.form.FilteringSelect" name="structure" id="structuresSelect" onchange="structureChanged()" value="<%= UtilMethods.isSet(contentExporterForm.getStructure()) ? contentExporterForm.getStructure() : "" %>" >
+				<select dojoType="dijit.form.FilteringSelect" name="structure" id="structuresSelect" onchange="structureChanged()" value="<%= UtilMethods.isSet(contentExporterForm.getStructure()) ? contentExporterForm.getStructure() : "" %>" >
 					<%
 						for (Structure structure: structures) {
 					%>
@@ -910,7 +910,7 @@ function submitParent() {
 				</select>
 			</dd>
 			<dt><img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"Language-of-the-Contents-to-Export")%>:
-				<br/><em><%=LanguageUtil.get(pageContext,"Language-of-the-Contents-to-Export-hint")%></em>
+				<em><%=LanguageUtil.get(pageContext,"Language-of-the-Contents-to-Export-hint")%></em>
 			</dt>
 			<dd>
 				<br/><select dojoType="dijit.form.FilteringSelect" name="language" id="languageSelect" value="<%= UtilMethods.isSet(contentExporterForm.getLanguage()) ? contentExporterForm.getLanguage() : "-1" %>" >
@@ -926,7 +926,7 @@ function submitParent() {
 			</dd>
 			<div id="structureFieldsDiv" style="display:none;">
 			<dt><%=LanguageUtil.get(pageContext,"Fields-to-export")%>:
-				<br/><em><%=LanguageUtil.get(pageContext,"Fields-to-export-hint")%></em>
+				<em><%=LanguageUtil.get(pageContext,"Fields-to-export-hint")%></em>
 			</dt>
 			<dd>
 				<table>
@@ -936,7 +936,7 @@ function submitParent() {
 			</div>
 			<dt><img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-file-target")%>:</dt>
 			<dd>
-				<input type="radio" dojoType="dijit.form.RadioButton" <%=(!contentExporterForm.isHaveFileTarget()) ? "checked" : "" %> id="haveFilePath" name="haveFileTarget" value="false" onclick="toggleFileTarget(this)" /><%=LanguageUtil.get(pageContext,"content-exporter-use-filepath")%>
+				<input type="radio" dojoType="dijit.form.RadioButton" <%=(!contentExporterForm.isHaveFileTarget()) ? "checked" : "" %> id="haveFilePath" name="haveFileTarget" value="false" onclick="toggleFileTarget(this)" /> <%=LanguageUtil.get(pageContext,"content-exporter-use-filepath")%>
 				<div id="filePathDiv" style="margin-left:20px;">
 					<img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-file-path-title")%><input class="form-text" dojoType="dijit.form.TextBox" name="filePath" size="75" id="filePath" value="<%= UtilMethods.isSet(contentExporterForm.getFilePath()) ? contentExporterForm.getFilePath() : "" %>" style="width: 300px;" type="text" >
 					<br/>
@@ -948,7 +948,7 @@ function submitParent() {
 					<em><%=LanguageUtil.get(pageContext,"content-exporter-overwrite-file-hint")%></em>
 				</div>
 				<br/>
-				<input type="radio" dojoType="dijit.form.RadioButton" <%=(contentExporterForm.isHaveFileTarget()) ? "checked" : "" %> id="haveFileAsset" name="haveFileTarget" value="true" onclick="toggleFileTarget(this)" /><%=LanguageUtil.get(pageContext,"content-exporter-use-fileasset")%>
+				<input type="radio" dojoType="dijit.form.RadioButton" <%=(contentExporterForm.isHaveFileTarget()) ? "checked" : "" %> id="haveFileAsset" name="haveFileTarget" value="true" onclick="toggleFileTarget(this)" /> <%=LanguageUtil.get(pageContext,"content-exporter-use-fileasset")%>
 				<div id="fileAssetDiv" style="margin-left:20px;">
 					<img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-file-asset-title")%><select dojoType="dijit.form.FilteringSelect" name="fileAsset" id="fileAsset" value="<%= UtilMethods.isSet(contentExporterForm.getFileAsset()) ? contentExporterForm.getFileAsset() : "" %>" >
 						<%
@@ -987,15 +987,15 @@ function submitParent() {
 			toggleFileTarget(document.getElementById('haveFilePath'));
 			</script>
 			<dt><img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-csv-separator-delimiter")%>:
-				<br/><em><%=LanguageUtil.get(pageContext,"content-exporter-csv-separator-delimiter-hint")%></em>
+				<em><%=LanguageUtil.get(pageContext,"content-exporter-csv-separator-delimiter-hint")%></em>
 			</dt>
 			<dd><br/><input class="form-text" dojoType="dijit.form.TextBox" name="csvSeparatorDelimiter" size="75" id="csvSeparatorDelimiter" value="<%= UtilMethods.isSet(contentExporterForm.getCsvSeparatorDelimiter()) ? contentExporterForm.getCsvSeparatorDelimiter() : "," %>" style="width: 300px;" type="text" size="3"></dd>
 			<dt><img src="/html/images/icons/required.gif"/> <%=LanguageUtil.get(pageContext,"content-exporter-csv-text-delimiter")%>:
-				<br/><em><%=LanguageUtil.get(pageContext,"content-exporter-csv-text-delimiter-hint")%></em>
+				<em><%=LanguageUtil.get(pageContext,"content-exporter-csv-text-delimiter-hint")%></em>
 			</dt>
 			<dd><input class="form-text" dojoType="dijit.form.TextBox" name="csvTextDelimiter" size="75" id="csvTextDelimiter" value="<%= UtilMethods.isSet(contentExporterForm.getCsvTextDelimiter()) ? contentExporterForm.getCsvTextDelimiter().replaceAll("\"","&quot;"):"&quot;" %>" style="width: 300px;" type="text" size="3"></dd>
 			<dt><%=LanguageUtil.get(pageContext,"content-exporter-report-email")%>:
-				<br/><em><%=LanguageUtil.get(pageContext,"content-exporter-report-email-hint")%></em>
+				<em><%=LanguageUtil.get(pageContext,"content-exporter-report-email-hint")%></em>
 			</dt>
 			<dd><br/><br/><input class="form-text" dojoType="dijit.form.TextBox" name="reportEmail" size="75" id="reportEmail" value="<%= UtilMethods.isSet(contentExporterForm.getReportEmail()) ? contentExporterForm.getReportEmail() : "" %>" style="width: 300px;" type="text" ></dd>
 		</dl>
